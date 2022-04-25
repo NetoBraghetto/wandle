@@ -102,3 +102,16 @@ dist
 
 # TernJS port file
 .tern-port
+
+/.env
+/.env-*
+
+/docker/mysql/data/
+/docker/mysql-production/data/
+
+/getdb
+/getdb.bat
+/backup-download.sql
+/backup-download-*
+
+*:Zone.Identifier

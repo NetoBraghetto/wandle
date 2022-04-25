@@ -1,0 +1,131 @@
+version: "3.7"
+
+services:
+  # =======================
+  # Node
+  # =======================
+  node:
+    container_name: "${DOCKER_APP}-node"
+    build: "./docker/node"
+    restart: "no"
+    expose:
+      - "9229"
+      - "3000"
+    volumes:
+      - "./api:/usr/src/app"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.node.entrypoints=web"
+      - "traefik.http.routers.node.rule=Host(`api.${APP_DOMAIN}`)"
+      - "traefik.http.routers.node.service=node"
+      - "traefik.http.services.node.loadbalancer.server.port=3000"
+    command: ["npm", "run", "dev"]
+    depends_on:
+      - mysql
+    networks:
+      backend:
+        ipv4_address: "${DOCKER_IPV4_BASE}.5"
+  # =======================
+  # Mysql
+  # =======================
+  mysql:
+    container_name: "${DOCKER_APP}-mysql"
+    build: "${DOCKER_MYSQL_BUILD}"
+    restart: "no"
+    expose:
+      - "3306"
+    environment:
+      MYSQL_DATABASE: "${DB_DATABASE}"
+      MYSQL_ROOT_PASSWORD: "${DB_PASSWORD}"
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+    volumes:
+      - "${DOCKER_MYSQL_BUILD}/data:/var/lib/mysql"
+      - "${DOCKER_MYSQL_BUILD}/mysql.cnf:/etc/mysql/conf.d/mysql.cnf"
+    networks:
+      backend:
+        ipv4_address: "${DOCKER_IPV4_BASE}.10"
+  # =======================
+  # Mailhog
+  # =======================
+  mailhog:
+    container_name: "${DOCKER_APP}-mailhog"
+    image: "mailhog/mailhog:latest"
+    restart: "no"
+    expose:
+      - "1025"
+      - "8025"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mailhog.entrypoints=web"
+      - "traefik.http.routers.mailhog.rule=Host(`mailhog.${APP_DOMAIN}`)"
+      - "traefik.http.services.mailhog.loadbalancer.server.port=8025"
+    networks:
+      backend:
+        ipv4_address: "${DOCKER_IPV4_BASE}.15"
+  # =======================
+  # Nginx for admin
+  # =======================
+  nginx:
+    container_name: "${DOCKER_APP}-nginx"
+    build: "./docker/nginx"
+    # tty: true
+    expose:
+      - "80"
+    volumes:
+      - "./admin/build:/usr/share/nginx/html"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nginx.entrypoints=web"
+      - "traefik.http.routers.nginx.rule=Host(`admin.${APP_DOMAIN}`)"
+    networks:
+      backend:
+        ipv4_address: "${DOCKER_IPV4_BASE}.20"
+  # =======================
+  # Phpmyadmin
+  # =======================
+  phpmyadmin:
+    container_name: "${DOCKER_APP}-phpmyadmin"
+    image: phpmyadmin/phpmyadmin:latest
+    expose:
+      - "80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.phpmyadmin.entrypoints=web"
+      - "traefik.http.routers.phpmyadmin.rule=Host(`pma.${APP_DOMAIN}`)"
+    environment:
+      - "PMA_HOST=${DB_HOST}"
+      - "PMA_PORT=${DB_PORT}"
+      - "PMA_USER=${DB_USERNAME}"
+      - "PMA_PASSWORD=${DB_PASSWORD}"
+    networks:
+      backend:
+        ipv4_address: "${DOCKER_IPV4_BASE}.200"
+  # =======================
+  # Traefik
+  # =======================
+  traefik:
+    container_name: "${DOCKER_APP}-traefik"
+    image: "traefik:v2.6"
+    ports:
+      - "80:80"
+      # - "443:443"
+      - "8080:8080" # Expose Dashboard development only
+    volumes:
+      - ./docker/traefik/conf:/etc/traefik
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - node
+      - nginx
+    networks:
+      backend:
+        ipv4_address: "${DOCKER_IPV4_BASE}.2"
+networks:
+  backend:
+    name: "${DOCKER_APP}-network"
+    driver: bridge
+    driver_opts:
+      com.docker.network.enable_ipv4: "true"
+    ipam:
+      driver: default
+      config:
+        - subnet: "${DOCKER_IPV4_BASE}.0/16"

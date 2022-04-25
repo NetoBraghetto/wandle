@@ -1,0 +1,6 @@
+/mysql/data/
+/mysql-production/data/
+/redis/data/
+/redis-production/data/
+/meilisearch/data/
+/meilisearch-production/data/
