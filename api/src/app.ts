@@ -1,12 +1,9 @@
+import 'dotenv/config';
 import express, { Application } from "express";
+import './database';
 import api from "./routes/api";
-const port = 3000;
 const app:Application = express();
 
 app.use(api);
 
-app.listen(port, () : void => {
-
-});
-
-module.exports = app;
+export default app;
